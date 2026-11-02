@@ -1,8 +1,87 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
-import Image from "./assets/img.jpg";
+import { Card } from "./Card";
+
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
 
 function App() {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [characters, setCharacters] = useState([]);
+  const [cards, setCards] = useState([]);
+  const [currentScore, setCurrentScore] = useState(0);
+  const [highScore, setHighScore] = useState(0);
+
+  function scoreHandler(card) {
+    setCharacters(shuffleArray(characters));
+    if (cards.includes(card)) {
+      if (currentScore > highScore) {
+        setHighScore(currentScore);
+      }
+      setCurrentScore(0);
+      setCards([]);
+    } else {
+      setCards([...cards, card]);
+      setCurrentScore(currentScore + 1);
+    }
+  }
+
+  var query = `query Query($mediaId: Int, $sort: [CharacterSort], $perPage: Int) {
+  Media(id: $mediaId) {
+    characters(sort: $sort, perPage: $perPage) {
+      nodes {
+        name {
+          full
+        }
+        image {
+          large
+        }
+        id
+      }
+    }
+  }
+}`;
+
+  var variables = {
+    mediaId: 130298,
+    sort: "RELEVANCE",
+    perPage: 10,
+  };
+
+  var url = "https://graphql.anilist.co",
+    options = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        query: query,
+        variables: variables,
+      }),
+    };
+
+  useEffect(() => {
+    fetch(url, options)
+      .then((response) => {
+        return response.json();
+      })
+      .then((response) => {
+        setCharacters(response.data.Media.characters.nodes);
+      })
+      .catch((error) => setError(error))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p>Error: {error.message}</p>;
+
   return (
     <>
       <header>
@@ -12,61 +91,20 @@ function App() {
         </div>
 
         <div className="score-container">
-          <h2>High Score:</h2>
-          <h2>Current Score: </h2>
+          <h2>High Score: {highScore}</h2>
+          <h2>Current Score: {currentScore}</h2>
         </div>
       </header>
 
       <main>
-        <div class="card">
-          <img src={Image} />
-          <p>card 1</p>
-        </div>
-
-        <div class="card">
-          <img src={Image} />
-          <p>card 2</p>
-        </div>
-
-        <div class="card">
-          <img src={Image} />
-          <p>card 3</p>
-        </div>
-
-        <div class="card">
-          <img src={Image} />
-          <p>card 4</p>
-        </div>
-
-        <div class="card">
-          <img src={Image} />
-          <p>card 5</p>
-        </div>
-
-        <div class="card">
-          <img src={Image} />
-          <p>card 6</p>
-        </div>
-
-        <div class="card">
-          <img src={Image} />
-          <p>card 7</p>
-        </div>
-
-        <div class="card">
-          <img src={Image} />
-          <p>card 8</p>
-        </div>
-
-        <div class="card">
-          <img src={Image} />
-          <p>card 9</p>
-        </div>
-
-        <div class="card">
-          <img src={Image} />
-          <p>card 10</p>
-        </div>
+        {characters.map((character) => (
+          <Card
+            key={character.id}
+            image={character.image.large}
+            name={character.name.full}
+            onClick={() => scoreHandler(character.id)}
+          />
+        ))}
       </main>
     </>
   );
